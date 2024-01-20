@@ -60,14 +60,14 @@ void loop() {
    value_AR = analogRead(A_LINE_R);
    
   Serial.println("ANALOG_L: " + String(value_AL) + "\n"
-                  "ANALOG_R: " + String(value_AR) ); // Print the value to the serial monitor
-  //course_correct();
-  //if(check_distance() <= 10.0){
-  //  MOTOR_CONTROL(STOP);
-  //}
-  // delay(1000); // Wait for 100 milliseconds before reading again
-  if(check_distance() > 20){
+                  "ANALOG_R: " + String(value_AR) );
+  double dist = check_distance();
+  if(dist > 20){
     course_correct();
+  }
+  else if(dist < 7){
+    MOTOR_CONTROL(REV, 100);
+    delay(100);
   }
   else{
     path();
@@ -75,31 +75,35 @@ void loop() {
   
 }
 
-void course_correct(){
-  MOTOR_CONTROL(FWD);
-  delay(50);
-  MOTOR_CONTROL(STOP);
-  delay(40);
-  if(value_AL < 50){
-    //TODO: left turn
-    MOTOR_CONTROL(STOP);
-    delay(10);
-    MOTOR_CONTROL(L);
+void course_correct() {
+  if (value_AL < 45) {
+    // Left turn
+    MOTOR_CONTROL(STOP, 0);
+    delay(5);
+    MOTOR_CONTROL(L, 255);
+    delay(5);
+    Serial.println("LEFT");
   }
 
-  if(value_AR < 50){
-    //TODO: right turn
-    MOTOR_CONTROL(STOP);
-    delay(10);
-    MOTOR_CONTROL(R);
+  if (value_AR < 49) {
+    // Right turn
+    MOTOR_CONTROL(STOP, 0);
+    delay(5);
+    MOTOR_CONTROL(R, 255);
+    delay(5);
+    Serial.println("RIGHT");
   }
-
-  
+  else {
+    MOTOR_CONTROL(STOP, 0);
+    delay(5);
+    MOTOR_CONTROL(FWD, 100);
+    delay(5);
+  }
 }
 
 
 
-void MOTOR_CONTROL (int CMD){
+void MOTOR_CONTROL (int CMD, int speed_){
   
   switch(CMD){
     case FWD: 
@@ -111,8 +115,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN3, LOW);
     digitalWrite(IN4, HIGH);
     //ENABLE MOTORS
-    analogWrite(EN_A,255);
-    analogWrite(EN_B,255);
+    analogWrite(EN_A,speed_);
+    analogWrite(EN_B,speed_);
     break;
     case REV:
     //go backwards
@@ -123,8 +127,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN3, HIGH);
     digitalWrite(IN4, LOW);
     //ENABLE MOTORS
-    analogWrite(EN_A,255);
-    analogWrite(EN_B,255);
+    analogWrite(EN_A,speed_);
+    analogWrite(EN_B,speed_);
     break;
     case L:
     //Turn left
@@ -135,8 +139,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN3, LOW);
     digitalWrite(IN4, HIGH);
     //ENABLE MOTORS
-    analogWrite(EN_A,255);
-    analogWrite(EN_B,255);
+    analogWrite(EN_A,speed_);
+    analogWrite(EN_B,speed_);
     break;
     case R:
     //Turn right
@@ -187,37 +191,37 @@ void scan_area() {
   int index = 0; // Array index
   int arraySize = readings;
   // Turn right and take readings
-  MOTOR_CONTROL(R);
+  MOTOR_CONTROL(R, 100);
   for (int i = 0; i < (readings/2); i++) { // Assuming 200ms at 10ms per reading
     if (index < arraySize) {
-      MOTOR_CONTROL(STOP);
+      MOTOR_CONTROL(STOP, 0);
       delay(100);
       sensorReadings[index++] = check_distance();
-      MOTOR_CONTROL(R);
+      MOTOR_CONTROL(R, 255);
       delay(60);
     }
   }
   // Turn left and take readings
   for (int j = 0; j < readings/2; j++){
-    MOTOR_CONTROL(L);
+    MOTOR_CONTROL(L, 255);
     delay(60);
-    MOTOR_CONTROL(STOP);
+    MOTOR_CONTROL(STOP, 0);
     delay(100);
   }
   
   for (int i = 0; i < (readings/2); i++) { // Assuming 200ms at 10ms per reading
     if (index < arraySize) {
-      MOTOR_CONTROL(STOP);
+      MOTOR_CONTROL(STOP, 0);
       delay(100);
       sensorReadings[index++] = check_distance();
-      MOTOR_CONTROL(L);
+      MOTOR_CONTROL(L, 255);
       delay(70);
     }
   }
   for (int j = 0; j < readings/2; j++){
-    MOTOR_CONTROL(R);
+    MOTOR_CONTROL(R, 255);
     delay(60);
-    MOTOR_CONTROL(STOP);
+    MOTOR_CONTROL(STOP, 0);
     delay(100);
   }
   
@@ -258,17 +262,17 @@ void path() {
   int i = findIndexOfLargestTriplet(sensorReadings, readings);
   if (i < readings/2){
     for(int j = 0; j < i; j++){
-      MOTOR_CONTROL(R);
+      MOTOR_CONTROL(R, 255);
       delay(60);
-      MOTOR_CONTROL(STOP);
+      MOTOR_CONTROL(STOP, 0);
       delay(100);
     }
   }
   else {
         for(int j = 0; j < (i - (readings/2)); j++){
-          MOTOR_CONTROL(L);
+          MOTOR_CONTROL(L, 255);
           delay(60);
-          MOTOR_CONTROL(STOP);
+          MOTOR_CONTROL(STOP, 0);
           delay(100);
         }
 
