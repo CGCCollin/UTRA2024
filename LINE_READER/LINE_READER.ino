@@ -74,19 +74,19 @@ void loop() {
 }
 
 void course_correct(){
-  MOTOR_CONTROL(0);
-  if(value_AL > 300){
+  MOTOR_CONTROL(FWD);
+  if(value_AL < 40){
     //TODO: left turn
     MOTOR_CONTROL(STOP);
-    delayMicroseconds(2);
-    MOTOR_CONTROL(2);
+    delay(10);
+    MOTOR_CONTROL(L);
   }
 
-  if(value_AR > 300){
+  if(value_AR < 40){
     //TODO: right turn
     MOTOR_CONTROL(STOP);
-    delayMicroseconds(2);
-    MOTOR_CONTROL(3);
+    delay(10);
+    MOTOR_CONTROL(R);
   }
 
   
@@ -186,27 +186,35 @@ void scan_area() {
   for (int i = 0; i < (readings/2); i++) { // Assuming 200ms at 10ms per reading
     if (index < arraySize) {
       MOTOR_CONTROL(STOP);
-      delay(200);
+      delay(100);
       sensorReadings[index++] = check_distance();
       MOTOR_CONTROL(R);
-      delay(50);
+      delay(60);
     }
   }
   // Turn left and take readings
-  MOTOR_CONTROL(L);
-  delay(250);
+  for (int j = 0; j < readings/2; j++){
+    MOTOR_CONTROL(L);
+    delay(60);
+    MOTOR_CONTROL(STOP);
+    delay(100);
+  }
+  
   for (int i = 0; i < (readings/2); i++) { // Assuming 200ms at 10ms per reading
     if (index < arraySize) {
       MOTOR_CONTROL(STOP);
-      delay(200);
+      delay(100);
       sensorReadings[index++] = check_distance();
       MOTOR_CONTROL(L);
-      delay(50);
+      delay(60);
     }
   }
-  MOTOR_CONTROL(R);
-  delay(300);
-  MOTOR_CONTROL(STOP);
+  for (int j = 0; j < readings/2; j++){
+    MOTOR_CONTROL(R);
+    delay(60);
+    MOTOR_CONTROL(STOP);
+    delay(100);
+  }
   
 
   // Print the sensor readings to the serial monitor
@@ -246,17 +254,17 @@ void path() {
   if (i < readings/2){
     for(int j = 0; j < i; j++){
       MOTOR_CONTROL(R);
-      delay(50);
+      delay(60);
       MOTOR_CONTROL(STOP);
-      delay(50);
+      delay(100);
     }
   }
   else {
         for(int j = 0; j < (i - (readings/2)); j++){
           MOTOR_CONTROL(L);
-          delay(50);
+          delay(60);
           MOTOR_CONTROL(STOP);
-          delay(50);
+          delay(100);
         }
 
   }
