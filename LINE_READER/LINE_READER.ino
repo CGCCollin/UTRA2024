@@ -14,20 +14,25 @@ const int A_LINE_L = A0;
 const int A_LINE_R = A1;
 const int THRESHOLD_L = 300;
 const int THRESHOLD_R = 300;
+const int L_SPEED = 204;
+const int R_SPEED = 200;
+int R_RATE = 100;
+int L_RATE = 100;
 //Note that higher values correspond to more light.
 //Digital 1 = lots of light
 double value_AL;
 double value_AR;
-const int readings = 30;
+const int readings = 16;
 double sensorReadings[readings];
+int gamble = 0;
 
 //Motor Pins
-int EN_A = 11; //Enable pin for first motor
+int EN_A = 10; //Enable pin for first motor
 int IN1 = 9; //control pin for first motor (L)
 int IN2 = 8; //control pin for first motor (L)
 int IN3 = 7; //control pin for second motor (R)
 int IN4 = 6; //control pin for second motor (R)
-int EN_B = 10; //Enable pin for second motor
+int EN_B = 11; //Enable pin for second motor
 //Initializing variables to store data
 int motor_speed;
 int motor_speed1;
@@ -55,19 +60,19 @@ void setup() {
 }
 
 void loop() {
-   Serial.println("LOOP");
+   Serial.println("");
    value_AL = analogRead(A_LINE_L); // reads the analog input from the IR distance sensor
    value_AR = analogRead(A_LINE_R);
    
   Serial.println("ANALOG_L: " + String(value_AL) + "\n"
                   "ANALOG_R: " + String(value_AR) );
   double dist = check_distance();
-  if(dist > 20){
+  if(dist > 10){
     course_correct();
   }
   else if(dist < 7){
-    MOTOR_CONTROL(REV, 100);
-    delay(100);
+    //MOTOR_CONTROL(REV);
+    //delay(100);
   }
   else{
     path();
@@ -76,34 +81,94 @@ void loop() {
 }
 
 void course_correct() {
-  if (value_AL < 45) {
+  if (value_AL > 400) {
     // Left turn
-    MOTOR_CONTROL(STOP, 0);
+    MOTOR_CONTROL(L);
+    delay(10);
+    MOTOR_CONTROL(STOP);
     delay(5);
-    MOTOR_CONTROL(L, 255);
-    delay(5);
-    Serial.println("LEFT");
+    return;
   }
 
-  if (value_AR < 49) {
+  if (value_AR > 600) {
     // Right turn
-    MOTOR_CONTROL(STOP, 0);
+    MOTOR_CONTROL(R);
+    delay(10);
+    MOTOR_CONTROL(STOP);
     delay(5);
-    MOTOR_CONTROL(R, 255);
-    delay(5);
-    Serial.println("RIGHT");
+    return;
   }
-  else {
-    MOTOR_CONTROL(STOP, 0);
+// Modify this to detect a T junction
+// If it detects the T junction, turn right 90, proceed. If we detect no tape, turn back 180, proceed then return to the loop
+if (value_AL > 230 && value_AR > 230) {
+    Serial.println("run");
+    MOTOR_CONTROL(FWD);
+    delay(20);
+    MOTOR_CONTROL(STOP);
     delay(5);
-    MOTOR_CONTROL(FWD, 100);
+    MOTOR_CONTROL(FWD);
+    delay(20);
+    MOTOR_CONTROL(STOP);
     delay(5);
-  }
+    MOTOR_CONTROL(FWD);
+    delay(20);
+    MOTOR_CONTROL(STOP);
+    delay(5);
+    
+    // Detected T-Junction, first turn right 90 degrees
+    MOTOR_CONTROL(R);
+    delay(16); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    MOTOR_CONTROL(R);
+    delay(16); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    MOTOR_CONTROL(R);
+    delay(16); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    value_AL = analogRead(A_LINE_L);
+    value_AR = analogRead(A_LINE_R);
+    while(value_AR < 350){
+          MOTOR_CONTROL(R);
+          delay(5); // Adjust this delay to accurately achieve a 90-degree turn
+          MOTOR_CONTROL(STOP);
+          delay(5);
+          value_AL = analogRead(A_LINE_L);
+          value_AR = analogRead(A_LINE_R);
+    }
+    // Check for no tape
+    value_AL = analogRead(A_LINE_L);
+    value_AR = analogRead(A_LINE_R);
+    if (value_AL < 100 && value_AR < 100) {
+        // No tape detected, turn 180 degrees
+        MOTOR_CONTROL(L);
+        delay(300); // Adjust this delay to accurately achieve a 180-degree turn
+        MOTOR_CONTROL(STOP);
+        delay(5);
+
+        // Move forward again
+        MOTOR_CONTROL(FWD);
+        delay(100);
+        MOTOR_CONTROL(STOP);
+        delay(5);
+
+        // Return to the main loop
+        return;
+    }
+}
+
+  MOTOR_CONTROL(FWD);
+  delay(10);
+  MOTOR_CONTROL(STOP);
+  delay(5);
 }
 
 
 
-void MOTOR_CONTROL (int CMD, int speed_){
+
+void MOTOR_CONTROL (int CMD){
   
   switch(CMD){
     case FWD: 
@@ -115,8 +180,8 @@ void MOTOR_CONTROL (int CMD, int speed_){
     digitalWrite(IN3, LOW);
     digitalWrite(IN4, HIGH);
     //ENABLE MOTORS
-    analogWrite(EN_A,speed_);
-    analogWrite(EN_B,speed_);
+    analogWrite(EN_A,L_SPEED);
+    analogWrite(EN_B,R_SPEED);
     break;
     case REV:
     //go backwards
@@ -127,10 +192,11 @@ void MOTOR_CONTROL (int CMD, int speed_){
     digitalWrite(IN3, HIGH);
     digitalWrite(IN4, LOW);
     //ENABLE MOTORS
-    analogWrite(EN_A,speed_);
-    analogWrite(EN_B,speed_);
+    analogWrite(EN_A,L_SPEED);
+    analogWrite(EN_B,R_SPEED);
     break;
     case L:
+    Serial.println("LEFT");
     //Turn left
     //LMOTOR CCW
     digitalWrite(IN1, LOW);
@@ -139,10 +205,11 @@ void MOTOR_CONTROL (int CMD, int speed_){
     digitalWrite(IN3, LOW);
     digitalWrite(IN4, HIGH);
     //ENABLE MOTORS
-    analogWrite(EN_A,speed_);
-    analogWrite(EN_B,speed_);
+    analogWrite(EN_A,L_SPEED);
+    analogWrite(EN_B,R_SPEED);
     break;
     case R:
+    Serial.println("RIGHT");
     //Turn right
     //LMOTOR CW
     digitalWrite(IN1, HIGH);
@@ -151,8 +218,8 @@ void MOTOR_CONTROL (int CMD, int speed_){
     digitalWrite(IN3, HIGH);
     digitalWrite(IN4, LOW);
     //ENABLE MOTORS
-    analogWrite(EN_A,255);
-    analogWrite(EN_B,255);
+    analogWrite(EN_A,L_SPEED);
+    analogWrite(EN_B,R_SPEED);
     break;
     case STOP:
     //stop
@@ -172,16 +239,17 @@ void MOTOR_CONTROL (int CMD, int speed_){
 }
 
 double check_distance(){
+   delay(5);
    long duration;
    double distance;
    digitalWrite(trigPin, LOW); 
    delayMicroseconds(2);
    digitalWrite(trigPin, HIGH);
-   delayMicroseconds(10); 
+   delayMicroseconds(10);
    digitalWrite(trigPin, LOW);
    duration = pulseIn(echoPin, HIGH);
    distance = (duration/2) / 29.1;
-   Serial.print("DISTANCE: ");
+   //Serial.print("DISTANCE: ");
    Serial.print(distance, 2); // Print the distance with 2 decimal places
    Serial.println("cm");
    return distance;
@@ -191,37 +259,37 @@ void scan_area() {
   int index = 0; // Array index
   int arraySize = readings;
   // Turn right and take readings
-  MOTOR_CONTROL(R, 100);
+  MOTOR_CONTROL(R);
   for (int i = 0; i < (readings/2); i++) { // Assuming 200ms at 10ms per reading
     if (index < arraySize) {
-      MOTOR_CONTROL(STOP, 0);
+      MOTOR_CONTROL(R);
+      delay(R_RATE);
+      MOTOR_CONTROL(STOP);
       delay(100);
       sensorReadings[index++] = check_distance();
-      MOTOR_CONTROL(R, 255);
-      delay(60);
     }
   }
   // Turn left and take readings
   for (int j = 0; j < readings/2; j++){
-    MOTOR_CONTROL(L, 255);
-    delay(60);
-    MOTOR_CONTROL(STOP, 0);
+    MOTOR_CONTROL(L);
+    delay(L_RATE);
+    MOTOR_CONTROL(STOP);
     delay(100);
   }
   
   for (int i = 0; i < (readings/2); i++) { // Assuming 200ms at 10ms per reading
     if (index < arraySize) {
-      MOTOR_CONTROL(STOP, 0);
+      MOTOR_CONTROL(STOP);
       delay(100);
       sensorReadings[index++] = check_distance();
-      MOTOR_CONTROL(L, 255);
-      delay(70);
+      MOTOR_CONTROL(L);
+      delay(L_RATE);
     }
   }
   for (int j = 0; j < readings/2; j++){
-    MOTOR_CONTROL(R, 255);
-    delay(60);
-    MOTOR_CONTROL(STOP, 0);
+    MOTOR_CONTROL(R);
+    delay(R_RATE);
+    MOTOR_CONTROL(STOP);
     delay(100);
   }
   
@@ -262,17 +330,17 @@ void path() {
   int i = findIndexOfLargestTriplet(sensorReadings, readings);
   if (i < readings/2){
     for(int j = 0; j < i; j++){
-      MOTOR_CONTROL(R, 255);
-      delay(60);
-      MOTOR_CONTROL(STOP, 0);
+      MOTOR_CONTROL(R);
+      delay(R_RATE);
+      MOTOR_CONTROL(STOP);
       delay(100);
     }
   }
   else {
         for(int j = 0; j < (i - (readings/2)); j++){
-          MOTOR_CONTROL(L, 255);
-          delay(60);
-          MOTOR_CONTROL(STOP, 0);
+          MOTOR_CONTROL(L);
+          delay(L_RATE);
+          MOTOR_CONTROL(STOP);
           delay(100);
         }
 
