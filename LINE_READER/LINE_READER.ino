@@ -46,7 +46,9 @@ const double threshold_R = 500;
 //timer system
 unsigned long timerStart;
 bool timerActive = false;
-int timer_len = 3000;
+int timer_len = 5000;
+//stores direction last correction L = 0, R = 1
+int LAST_CORRECTION = 0;
 
 //
 
@@ -78,7 +80,7 @@ void loop() {
   double dist = check_distance();
   if(dist > 10){
     course_correct();
-    //checkAndTurn();
+    checkAndTurn();
   }
   else if(dist < 7){
     //MOTOR_CONTROL(REV);
@@ -93,54 +95,37 @@ void loop() {
 void course_correct() {
   if (value_AL > 400) {
     trn_cnter_R = 0;
-    L_SPEED = 144;
-    R_SPEED = 140;
-    // Left turn
-    if(trn_cnter_L >=1000){
-      MOTOR_CONTROL(L);
-      delay(50);
-      MOTOR_CONTROL(STOP);
-      delay(10);
-      MOTOR_CONTROL(L);
-      delay(20);
-      MOTOR_CONTROL(STOP);
-      return;
-    }
+    LAST_CORRECTION = 0;
+    L_SPEED = 169;
+    R_SPEED = 165;
 
     MOTOR_CONTROL(L);
-    delay(10);
-    trn_cnter_L++;
+    delay(7 + trn_cnter_L++);
+    
     MOTOR_CONTROL(STOP);
-    delay(10);
+    delay(5);
     return;
   }
 
   if (value_AR > 600) {
     // Right turn
+    LAST_CORRECTION = 1;
     trn_cnter_L = 0;
-    L_SPEED = 144;
-    R_SPEED = 140;
-    if(trn_cnter_R >=1000){
-      MOTOR_CONTROL(R);
-      delay(50);
-      MOTOR_CONTROL(STOP);
-      delay(10);
-      MOTOR_CONTROL(R);
-      delay(20);
-      MOTOR_CONTROL(STOP);
-      return;
-    }
-    
+    L_SPEED = 184;
+    R_SPEED = 180;
+   
     MOTOR_CONTROL(R);
-    delay(10);
-    trn_cnter_R++;
+    delay(7 + trn_cnter_R++);
+    
     MOTOR_CONTROL(STOP);
-    delay(10);
+    delay(5);
     return;
   }
 // Modify this to detect a T junction
 // If it detects the T junction, turn right 90, proceed. If we detect no tape, turn back 180, proceed then return to the loop
 if (value_AL > 230 && value_AR > 230) {
+    L_SPEED = 209;
+    R_SPEED = 200;
     Serial.println("run");
     MOTOR_CONTROL(FWD);
     delay(20);
@@ -156,55 +141,21 @@ if (value_AL > 230 && value_AR > 230) {
     delay(10);
     
     // Detected T-Junction, first turn right 90 degrees
-    MOTOR_CONTROL(L);
-    delay(10); // Adjust this delay to accurately achieve a 90-degree turn
+    if(LAST_CORRECTION = 1){
+    MOTOR_CONTROL(R);
+    delay(15); // Adjust this delay to accurately achieve a 90-degree turn
     MOTOR_CONTROL(STOP);
     delay(10);
-    MOTOR_CONTROL(L);
-    delay(10); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(R);
+    delay(15); // Adjust this delay to accurately achieve a 90-degree turn
     MOTOR_CONTROL(STOP);
     delay(10);
-    MOTOR_CONTROL(L);
-    delay(10); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(R);
+    delay(15); // Adjust this delay to accurately achieve a 90-degree turn
     MOTOR_CONTROL(STOP);
     delay(10);
+    
     // Check for no tape
-    value_AL = analogRead(A_LINE_L);
-    value_AR = analogRead(A_LINE_R);
-    if (value_AL < 100 && value_AR < 100) {
-        // No tape detected, turn 180 degrees
-    MOTOR_CONTROL(L);
-    delay(20); // Adjust this delay to accurately achieve a 90-degree turn
-    MOTOR_CONTROL(STOP);
-    delay(10);
-    MOTOR_CONTROL(L);
-    delay(20); // Adjust this delay to accurately achieve a 90-degree turn
-    MOTOR_CONTROL(STOP);
-    delay(10);
-    MOTOR_CONTROL(L);
-    delay(20); // Adjust this delay to accurately achieve a 90-degree turn
-    MOTOR_CONTROL(STOP);
-    delay(10);
-
-        // Move forward again
-        MOTOR_CONTROL(FWD);
-        delay(100);
-        MOTOR_CONTROL(STOP);
-        delay(10);
-            value_AL = analogRead(A_LINE_L);
-            value_AR = analogRead(A_LINE_R);
-            //loop is supposed to catch an over turn
-          while(value_AL < 350){
-                MOTOR_CONTROL(L);
-                delay(5); // Adjust this delay to accurately achieve a 90-degree turn
-                MOTOR_CONTROL(STOP);
-                delay(10);
-                value_AL = analogRead(A_LINE_L);
-                value_AR = analogRead(A_LINE_R);
-    }
-        // Return to the main loop
-        return;
-    }
     value_AL = analogRead(A_LINE_L);
     value_AR = analogRead(A_LINE_R);
     while(value_AR < 350){
@@ -215,12 +166,42 @@ if (value_AL > 230 && value_AR > 230) {
           value_AL = analogRead(A_LINE_L);
           value_AR = analogRead(A_LINE_R);
     }
+    return;
+    }
+    else{
+    MOTOR_CONTROL(L);
+    delay(15); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    MOTOR_CONTROL(L);
+    delay(15); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    MOTOR_CONTROL(L);
+    delay(15); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    
+    // Check for no tape
+    value_AL = analogRead(A_LINE_L);
+    value_AR = analogRead(A_LINE_R);
+    while(value_AL < 350){
+          MOTOR_CONTROL(L);
+          delay(5); // Adjust this delay to accurately achieve a 90-degree turn
+          MOTOR_CONTROL(STOP);
+          delay(10);
+          value_AL = analogRead(A_LINE_L);
+          value_AR = analogRead(A_LINE_R);
+    }
+    return;
+    }
 }
-  L_SPEED = 154;
-  R_SPEED = 150;
+  L_SPEED = 204;
+  R_SPEED = 200;
   MOTOR_CONTROL(FWD);
-  delay(10);
+  delay(7);
   MOTOR_CONTROL(STOP);
+  delay(5);
 }
 
 
@@ -423,11 +404,40 @@ void checkAndTurn() {
     timerActive = false;
   } else if (millis() - timerStart > timer_len) {
     // 200ms have passed without detecting the required values, turn the device
-    MOTOR_CONTROL(L);
-    delay(200);
-    MOTOR_CONTROL(STOP);
-    delay(5);
-    // Reset the timer
-    timerActive = false;
+    if(LAST_CORRECTION = 1){
+    value_AL = analogRead(A_LINE_L);
+    value_AR = analogRead(A_LINE_R);
+    while(value_AR < 350){
+          MOTOR_CONTROL(R);
+          delay(5); // Adjust this delay to accurately achieve a 90-degree turn
+          MOTOR_CONTROL(STOP);
+          delay(10);
+          MOTOR_CONTROL(FWD);
+          delay(5);
+          MOTOR_CONTROL(STOP);
+          delay(10);
+          value_AL = analogRead(A_LINE_L);
+          value_AR = analogRead(A_LINE_R);
+    }
+    return;
+    }
+    else{
+      value_AL = analogRead(A_LINE_L);
+    value_AR = analogRead(A_LINE_R);
+    MOTOR_CONTROL(FWD);
+    delay(10);
+    while(value_AL < 350){
+          MOTOR_CONTROL(L);
+          delay(5); // Adjust this delay to accurately achieve a 90-degree turn
+          MOTOR_CONTROL(STOP);
+          delay(10);
+          MOTOR_CONTROL(FWD);
+          delay(5);
+          MOTOR_CONTROL(STOP);
+          delay(10);
+          value_AL = analogRead(A_LINE_L);
+          value_AR = analogRead(A_LINE_R);
+    }
+    }
   }
 }
