@@ -14,8 +14,8 @@ const int A_LINE_L = A0;
 const int A_LINE_R = A1;
 const int THRESHOLD_L = 300;
 const int THRESHOLD_R = 300;
-const int L_SPEED = 204;
-const int R_SPEED = 200;
+int L_SPEED = 204;
+int R_SPEED = 200;
 int R_RATE = 100;
 int L_RATE = 100;
 //Note that higher values correspond to more light.
@@ -34,12 +34,21 @@ int IN3 = 7; //control pin for second motor (R)
 int IN4 = 6; //control pin for second motor (R)
 int EN_B = 11; //Enable pin for second motor
 //Initializing variables to store data
+int trn_cnter_L = 0;
+int trn_cnter_R = 0;
 int motor_speed;
 int motor_speed1;
 //MOTOR SPEED FROM 0-255
 
 const double threshold_L = 500;
 const double threshold_R = 500;
+
+//timer system
+unsigned long timerStart;
+bool timerActive = false;
+int timer_len = 3000;
+
+//
 
 void setup() {
   Serial.begin(9600);
@@ -69,6 +78,7 @@ void loop() {
   double dist = check_distance();
   if(dist > 10){
     course_correct();
+    //checkAndTurn();
   }
   else if(dist < 7){
     //MOTOR_CONTROL(REV);
@@ -82,20 +92,50 @@ void loop() {
 
 void course_correct() {
   if (value_AL > 400) {
+    trn_cnter_R = 0;
+    L_SPEED = 144;
+    R_SPEED = 140;
     // Left turn
+    if(trn_cnter_L >=1000){
+      MOTOR_CONTROL(L);
+      delay(50);
+      MOTOR_CONTROL(STOP);
+      delay(10);
+      MOTOR_CONTROL(L);
+      delay(20);
+      MOTOR_CONTROL(STOP);
+      return;
+    }
+
     MOTOR_CONTROL(L);
     delay(10);
+    trn_cnter_L++;
     MOTOR_CONTROL(STOP);
-    delay(5);
+    delay(10);
     return;
   }
 
   if (value_AR > 600) {
     // Right turn
+    trn_cnter_L = 0;
+    L_SPEED = 144;
+    R_SPEED = 140;
+    if(trn_cnter_R >=1000){
+      MOTOR_CONTROL(R);
+      delay(50);
+      MOTOR_CONTROL(STOP);
+      delay(10);
+      MOTOR_CONTROL(R);
+      delay(20);
+      MOTOR_CONTROL(STOP);
+      return;
+    }
+    
     MOTOR_CONTROL(R);
     delay(10);
+    trn_cnter_R++;
     MOTOR_CONTROL(STOP);
-    delay(5);
+    delay(10);
     return;
   }
 // Modify this to detect a T junction
@@ -105,64 +145,82 @@ if (value_AL > 230 && value_AR > 230) {
     MOTOR_CONTROL(FWD);
     delay(20);
     MOTOR_CONTROL(STOP);
-    delay(5);
+    delay(10);
     MOTOR_CONTROL(FWD);
     delay(20);
     MOTOR_CONTROL(STOP);
-    delay(5);
+    delay(10);
     MOTOR_CONTROL(FWD);
     delay(20);
     MOTOR_CONTROL(STOP);
-    delay(5);
+    delay(10);
     
     // Detected T-Junction, first turn right 90 degrees
-    MOTOR_CONTROL(R);
-    delay(16); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(L);
+    delay(10); // Adjust this delay to accurately achieve a 90-degree turn
     MOTOR_CONTROL(STOP);
     delay(10);
-    MOTOR_CONTROL(R);
-    delay(16); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(L);
+    delay(10); // Adjust this delay to accurately achieve a 90-degree turn
     MOTOR_CONTROL(STOP);
     delay(10);
-    MOTOR_CONTROL(R);
-    delay(16); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(L);
+    delay(10); // Adjust this delay to accurately achieve a 90-degree turn
     MOTOR_CONTROL(STOP);
     delay(10);
+    // Check for no tape
+    value_AL = analogRead(A_LINE_L);
+    value_AR = analogRead(A_LINE_R);
+    if (value_AL < 100 && value_AR < 100) {
+        // No tape detected, turn 180 degrees
+    MOTOR_CONTROL(L);
+    delay(20); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    MOTOR_CONTROL(L);
+    delay(20); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+    MOTOR_CONTROL(L);
+    delay(20); // Adjust this delay to accurately achieve a 90-degree turn
+    MOTOR_CONTROL(STOP);
+    delay(10);
+
+        // Move forward again
+        MOTOR_CONTROL(FWD);
+        delay(100);
+        MOTOR_CONTROL(STOP);
+        delay(10);
+            value_AL = analogRead(A_LINE_L);
+            value_AR = analogRead(A_LINE_R);
+            //loop is supposed to catch an over turn
+          while(value_AL < 350){
+                MOTOR_CONTROL(L);
+                delay(5); // Adjust this delay to accurately achieve a 90-degree turn
+                MOTOR_CONTROL(STOP);
+                delay(10);
+                value_AL = analogRead(A_LINE_L);
+                value_AR = analogRead(A_LINE_R);
+    }
+        // Return to the main loop
+        return;
+    }
     value_AL = analogRead(A_LINE_L);
     value_AR = analogRead(A_LINE_R);
     while(value_AR < 350){
           MOTOR_CONTROL(R);
           delay(5); // Adjust this delay to accurately achieve a 90-degree turn
           MOTOR_CONTROL(STOP);
-          delay(5);
+          delay(10);
           value_AL = analogRead(A_LINE_L);
           value_AR = analogRead(A_LINE_R);
     }
-    // Check for no tape
-    value_AL = analogRead(A_LINE_L);
-    value_AR = analogRead(A_LINE_R);
-    if (value_AL < 100 && value_AR < 100) {
-        // No tape detected, turn 180 degrees
-        MOTOR_CONTROL(L);
-        delay(300); // Adjust this delay to accurately achieve a 180-degree turn
-        MOTOR_CONTROL(STOP);
-        delay(5);
-
-        // Move forward again
-        MOTOR_CONTROL(FWD);
-        delay(100);
-        MOTOR_CONTROL(STOP);
-        delay(5);
-
-        // Return to the main loop
-        return;
-    }
 }
-
+  L_SPEED = 154;
+  R_SPEED = 150;
   MOTOR_CONTROL(FWD);
   delay(10);
   MOTOR_CONTROL(STOP);
-  delay(5);
 }
 
 
@@ -344,5 +402,32 @@ void path() {
           delay(100);
         }
 
+  }
+}
+
+//timer function
+void checkAndTurn() {
+  // Start the timer if it's not already running
+  if (!timerActive) {
+    timerStart = millis();
+    timerActive = true;
+  }
+
+  // Read sensor values
+  value_AL = analogRead(A_LINE_L); 
+  value_AR = analogRead(A_LINE_R);
+
+  // Check if either sensor value is above 400 or if 200ms have passed
+  if (value_AL > 150 || value_AR > 150) {
+    // Reset the timer
+    timerActive = false;
+  } else if (millis() - timerStart > timer_len) {
+    // 200ms have passed without detecting the required values, turn the device
+    MOTOR_CONTROL(L);
+    delay(200);
+    MOTOR_CONTROL(STOP);
+    delay(5);
+    // Reset the timer
+    timerActive = false;
   }
 }
