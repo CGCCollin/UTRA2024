@@ -1,7 +1,6 @@
 enum State {
   NORM,
-  SEARCH,
-  JUNCTION
+  SEARCH
 };
 
 //sources:
@@ -105,9 +104,7 @@ void loop() {
 }
 
 void handleNormState() {
-  if (isJunctionDetected()) {
-    enterJunctionState();
-  } else if (needsCourseCorrection()) {
+  if (needsCourseCorrection()) {
     courseCorrect();
   } else if (isLost()) {
     enterSearchState();
@@ -115,72 +112,6 @@ void handleNormState() {
     maintainCourse();
   }
 }
-
-bool isJunctionDetected() {
-  return value_AL > 250 && value_AR > 250;
-}
-
-
-void enterJunctionState() {
-  currentState = JUNCTION;
-  // Start moving forward for 5ms
-  // After moving forward, we start turning
-  startJunctionTurn();
-}
-void startJunctionTurn() {
-  unsigned long lastForwardBurst = millis();
-  unsigned long lastUpdateTime = millis();
-  const int forwardBurstDuration = 8; // Duration of forward movement burst in milliseconds
-  const int burstInterval = 0; // Interval between forward bursts in milliseconds
-  bool isBurstActive = false;
-
-  L_SPEED = 94; // Adjust speed as necessary
-  R_SPEED = 90; // Adjust speed as necessary
-
-  while (!isLineIntersected()) {
-    unsigned long currentTime = millis();
-
-    // Handle turning or forward burst based on timing
-    if (isBurstActive) {
-      if (currentTime - lastUpdateTime >= forwardBurstDuration) {
-        // Stop the burst and resume turning
-        isBurstActive = false;
-        lastUpdateTime = currentTime;
-        lastForwardBurst = currentTime;
-        continueTurn(); // Continue the turn
-      }
-    } else {
-      if (currentTime - lastForwardBurst >= burstInterval) {
-        // Start a forward burst
-        MOTOR_CONTROL(FWD);
-        isBurstActive = true;
-        lastUpdateTime = currentTime;
-      } else {
-        continueTurn(); // Continue the turn
-      }
-    }
-  }
-  currentState = NORM; // Return to normal operation
-}
-
-void continueTurn() {
-  // Continue turning in the last direction
-  if (lastTurnDirection == L) {
-    MOTOR_CONTROL(L);
-  } else {
-    MOTOR_CONTROL(R);
-  }
-}
-
-
-bool isLineIntersected() {
-  // Implement logic to determine if either sensor intersects with the line
-  // Placeholder implementation
-  value_AL = analogRead(A_LINE_L);
-  value_AR = analogRead(A_LINE_R);
-  return (value_AL > THRESHOLD_L || value_AR > THRESHOLD_R);
-}
-
 
 void handleSearchState() {
   if (findsTrack()) {
@@ -214,9 +145,9 @@ void courseCorrect() {
 
 void turnLeft() {
   // Implement left turning logic, adjust speeds or angles as needed
-  lastTurnDirection = L;
-  L_SPEED = 94;
-  R_SPEED = 90;
+lastTurnDirection = L;
+  L_SPEED = 159;
+  R_SPEED = 155;
   MOTOR_CONTROL(L);
   // Use non-blocking delay alternative here
   // ...
@@ -225,8 +156,8 @@ void turnLeft() {
 void turnRight() {
   // Implement right turning logic, adjust speeds or angles as needed
   lastTurnDirection = R;
-  L_SPEED = 94;
-  R_SPEED = 90;
+  L_SPEED = 174;
+  R_SPEED = 170;
   MOTOR_CONTROL(R);
   // Use non-blocking delay alternative here
   // ...
@@ -241,32 +172,18 @@ bool isLost() {
   if (value_AL > 300 || value_AR > 300) {
     lostTimerStart = millis(); // Reset timer if either sensor detects the line
     return false;
-  } else if (millis() - lostTimerStart > 1000) {
+  } else if (millis() - lostTimerStart > 2000) {
     isTimerRunning = false; // Stop the timer as the robot is now considered lost
     return true;
   }
   return false;
 }
 
-unsigned long lastMoveTime = 0;
-bool isMoving = true;
-const int moveDuration = 20; // Time to move before stopping (in milliseconds)
-const int stopDuration = 30; // Time to stop for better detection (in milliseconds)
-
 void maintainCourse() {
-  unsigned long currentTime = millis();
-
-  if (isMoving && currentTime - lastMoveTime > moveDuration) {
-    MOTOR_CONTROL(STOP); // Stop motors
-    isMoving = false;
-    lastMoveTime = currentTime;
-  } else if (!isMoving && currentTime - lastMoveTime > stopDuration) {
-    L_SPEED = 94;
-    R_SPEED = 90;
-    MOTOR_CONTROL(FWD); // Move forward
-    isMoving = true;
-    lastMoveTime = currentTime;
-  }
+  // Set speed for normal operation (straight forward)
+  L_SPEED = 140;
+  R_SPEED = 140;
+  MOTOR_CONTROL(FWD);
 }
 
 void enterSearchState() {
@@ -274,31 +191,14 @@ void enterSearchState() {
   // Implement any initialization for search state
 }
 
-unsigned long searchStartTime = 0;
-const unsigned long searchTimeout = 4000; // 4 seconds in milliseconds
-
 void searchPattern() {
   unsigned long currentTime = millis();
 
-  // Start the search timer if it's not already running
   if (!isSearchTimerRunning) {
     isSearchTimerRunning = true;
     searchPatternTimer = currentTime;
-    searchStartTime = currentTime; // Record the start time of the search
     currentSearchPhase = TURNING;
   }
-
-  // Check if search time has exceeded the timeout
-  if (currentTime - searchStartTime >= searchTimeout) {
-    // Timeout reached, stop searching
-    MOTOR_CONTROL(STOP);
-    currentState = NORM; // Return to normal operation or handle timeout as needed
-    isSearchTimerRunning = false;
-    return; // Exit the function
-  }
-
-
-
 
   switch (currentSearchPhase) {
     case TURNING:
@@ -355,8 +255,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN1, HIGH);
     digitalWrite(IN2, LOW);
     //RMOTOR CW
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
     //ENABLE MOTORS
     analogWrite(EN_A,L_SPEED);
     analogWrite(EN_B,R_SPEED);
@@ -367,8 +267,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, HIGH);
     //RMOTOR CCW
-    digitalWrite(IN3, LOW);
-    digitalWrite(IN4, HIGH);
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
     //ENABLE MOTORS
     analogWrite(EN_A,L_SPEED);
     analogWrite(EN_B,R_SPEED);
@@ -380,8 +280,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, HIGH);
     //RMOTOR CW
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, LOW);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, HIGH);
     //ENABLE MOTORS
     analogWrite(EN_A,L_SPEED);
     analogWrite(EN_B,R_SPEED);
@@ -393,8 +293,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN1, HIGH);
     digitalWrite(IN2, LOW);
     //RMOTOR CCW
-    digitalWrite(IN3, LOW);
-    digitalWrite(IN4, HIGH);
+    digitalWrite(IN3, HIGH);
+    digitalWrite(IN4, LOW);
     //ENABLE MOTORS
     analogWrite(EN_A,L_SPEED);
     analogWrite(EN_B,R_SPEED);
@@ -404,8 +304,8 @@ void MOTOR_CONTROL (int CMD){
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, LOW);
     //RMOTOR CCW
-    digitalWrite(IN3, HIGH);
-    digitalWrite(IN4, HIGH);
+    digitalWrite(IN3, LOW);
+    digitalWrite(IN4, LOW);
     analogWrite(EN_A,0);
     analogWrite(EN_B,0);
     break;
