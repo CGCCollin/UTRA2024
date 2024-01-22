@@ -123,49 +123,37 @@ bool isJunctionDetected() {
 
 void enterJunctionState() {
   currentState = JUNCTION;
-  // Start moving forward for 5ms
-  // After moving forward, we start turning
+  // Move forward a bit more to ensure it's fully over the junction
+  L_SPEED = 180;
+  R_SPEED = 180;
+  MOTOR_CONTROL(FWD);
+  unsigned long moveStartTime = millis();
+  while (millis() - moveStartTime < 5) {
+    // Wait for 5ms
+  }
   startJunctionTurn();
 }
+
 void startJunctionTurn() {
-  unsigned long lastForwardBurst = millis();
-  unsigned long lastUpdateTime = millis();
-  const int forwardBurstDuration = 8; // Duration of forward movement burst in milliseconds
-  const int burstInterval = 0; // Interval between forward bursts in milliseconds
-  bool isBurstActive = false;
+  // Set turning speed
+  L_SPEED = 184; // Adjust speed as necessary
+  R_SPEED = 180; // Adjust speed as necessary
 
-  L_SPEED = 94; // Adjust speed as necessary
-  R_SPEED = 90; // Adjust speed as necessary
+  // Start turning in the last direction
+  continueTurn();
 
+  // Now, keep turning until a line is intersected
   while (!isLineIntersected()) {
-    unsigned long currentTime = millis();
-
-    // Handle turning or forward burst based on timing
-    if (isBurstActive) {
-      if (currentTime - lastUpdateTime >= forwardBurstDuration) {
-        // Stop the burst and resume turning
-        isBurstActive = false;
-        lastUpdateTime = currentTime;
-        lastForwardBurst = currentTime;
-        continueTurn(); // Continue the turn
-      }
-    } else {
-      if (currentTime - lastForwardBurst >= burstInterval) {
-        // Start a forward burst
-        MOTOR_CONTROL(FWD);
-        isBurstActive = true;
-        lastUpdateTime = currentTime;
-      } else {
-        continueTurn(); // Continue the turn
-      }
-    }
+    // Just keep turning, no forward burst
+    continueTurn();
   }
+
   currentState = NORM; // Return to normal operation
 }
 
 void continueTurn() {
-  // Continue turning in the last direction
   if (lastTurnDirection == L) {
+    R_SPEED = 190;
     MOTOR_CONTROL(L);
   } else {
     MOTOR_CONTROL(R);
@@ -199,14 +187,14 @@ bool findsTrack() {
 }
 
 bool needsCourseCorrection() {
-  return value_AL > 450 || value_AR > 600;
+  return value_AL > 250 || value_AR > 300;
 }
 
 void courseCorrect() {
-  if (value_AL > 450) {
+  if (value_AL > 300) {
     // Course correct left
     turnLeft();
-  } else if (value_AR > 600) {
+  } else if (value_AR > 350) {
     // Course correct right
     turnRight();
   }
@@ -215,8 +203,8 @@ void courseCorrect() {
 void turnLeft() {
   // Implement left turning logic, adjust speeds or angles as needed
   lastTurnDirection = L;
-  L_SPEED = 94;
-  R_SPEED = 90;
+  L_SPEED = 174;
+  R_SPEED = 190;
   MOTOR_CONTROL(L);
   // Use non-blocking delay alternative here
   // ...
@@ -225,8 +213,8 @@ void turnLeft() {
 void turnRight() {
   // Implement right turning logic, adjust speeds or angles as needed
   lastTurnDirection = R;
-  L_SPEED = 94;
-  R_SPEED = 90;
+  L_SPEED = 184;
+  R_SPEED = 180;
   MOTOR_CONTROL(R);
   // Use non-blocking delay alternative here
   // ...
@@ -250,8 +238,8 @@ bool isLost() {
 
 unsigned long lastMoveTime = 0;
 bool isMoving = true;
-const int moveDuration = 20; // Time to move before stopping (in milliseconds)
-const int stopDuration = 30; // Time to stop for better detection (in milliseconds)
+const int moveDuration = 10; // Time to move before stopping (in milliseconds)
+const int stopDuration = 20; // Time to stop for better detection (in milliseconds)
 
 void maintainCourse() {
   unsigned long currentTime = millis();
@@ -261,8 +249,8 @@ void maintainCourse() {
     isMoving = false;
     lastMoveTime = currentTime;
   } else if (!isMoving && currentTime - lastMoveTime > stopDuration) {
-    L_SPEED = 94;
-    R_SPEED = 90;
+    L_SPEED = 184;
+    R_SPEED = 180;
     MOTOR_CONTROL(FWD); // Move forward
     isMoving = true;
     lastMoveTime = currentTime;
@@ -400,6 +388,7 @@ void MOTOR_CONTROL (int CMD){
     analogWrite(EN_B,R_SPEED);
     break;
     case STOP:
+    
     //stop
     digitalWrite(IN1, LOW);
     digitalWrite(IN2, LOW);
